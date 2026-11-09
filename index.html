@@ -68,8 +68,8 @@
         #crosshair::before, #crosshair::after {
             content: '';
             position: absolute;
-            background: #ff00ff;
-            box-shadow: 0 0 8px #ff00ff;
+            background: #00ffff;
+            box-shadow: 0 0 8px #00ffff;
         }
         #crosshair::before { top: 10px; left: 0; width: 24px; height: 4px; }
         #crosshair::after { top: 0; left: 10px; width: 4px; height: 24px; }
@@ -79,7 +79,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(5, 5, 20, 0.92);
+            background: rgba(5, 5, 20, 0.95);
             border: 2px solid #00ffff;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
             padding: 35px;
@@ -125,10 +125,10 @@
         #flash {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 0, 255, 0.2);
+            background: rgba(0, 255, 255, 0.25);
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.1s;
+            transition: opacity 0.08s;
         }
     </style>
 </head>
@@ -146,15 +146,15 @@
             </div>
             <div class="hud-bottom">
                 <div id="ammoDisplay">AMMO: 30 / 30</div>
-                <div id="controlsHint">WASD to Move | Mouse to Look Around | Click to Fire</div>
+                <div id="controlsHint">WASD to Move | Mouse to Look | Left Click to Fire</div>
             </div>
         </div>
         <div id="instructions">
-            <h1>NEON DISTRIC 2099</h1>
-            <p>Navigate the high-tech cybernetic streets and clear out rogue hovering combat drones.</p>
-            <p><b>WASD</b> to move around the city.</p>
-            <p><b>Mouse</b> to look around smoothly in all directions & <b>Left Click</b> to shoot.</p>
-            <button id="startBtn">ENTER THE GRID</button>
+            <h1>NEON DISTRICT 2099</h1>
+            <p>Patrol the cybernetic streets and eliminate rogue combat drones.</p>
+            <p><b>WASD</b> to move smoothly through the city.</p>
+            <p><b>Mouse</b> to look around & <b>Left Click</b> to shoot.</p>
+            <button id="startBtn">INITIALIZE SIMULATION</button>
         </div>
     </div>
 
@@ -177,23 +177,22 @@
         
         const player = {
             x: 0,
-            y: 2.5,
+            y: 2.2,
             z: 0,
             angle: 0,
             pitch: 0,
-            speed: 0.18
+            speed: 0.16
         };
 
         const keys = {};
         window.addEventListener('keydown', e => { keys[e.code] = true; });
         window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-        // Fixed mouse look supporting full 360-degree turning in all directions
+        // Fixed non-inverted mouse look
         window.addEventListener('mousemove', e => {
             if (!gameStarted || document.pointerLockElement !== canvas) return;
-            player.angle += e.movementX * 0.0025;
-            player.pitch -= e.movementY * 0.0025;
-            // Clamp pitch so camera doesn't flip upside down
+            player.angle += e.movementX * 0.0022;
+            player.pitch += e.movementY * 0.0022; // Fixed direction
             player.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, player.pitch));
         });
 
@@ -215,15 +214,15 @@
         const particles = [];
 
         function initWorld() {
-            // Generate glowing cyberpunk city buildings
-            for (let i = 0; i < 40; i++) {
+            for (let i = 0; i < 45; i++) {
                 buildings.push({
-                    x: (Math.random() - 0.5) * 200,
-                    z: (Math.random() - 0.5) * 200,
-                    width: 12 + Math.random() * 15,
-                    height: 30 + Math.random() * 60,
-                    depth: 12 + Math.random() * 15,
-                    color: Math.random() > 0.5 ? '#ff00ff' : '#00ffff'
+                    x: (Math.random() - 0.5) * 220,
+                    z: (Math.random() - 0.5) * 220,
+                    width: 14 + Math.random() * 16,
+                    height: 35 + Math.random() * 65,
+                    depth: 14 + Math.random() * 16,
+                    color: Math.random() > 0.5 ? '#ff00ff' : '#00ffff',
+                    secondaryColor: Math.random() > 0.5 ? '#00ffff' : '#ff007f'
                 });
             }
             spawnWave();
@@ -231,32 +230,30 @@
 
         function spawnWave() {
             targets.length = 0;
-            const count = 4 + wave * 3;
+            const count = 5 + wave * 3;
             for (let i = 0; i < count; i++) {
                 targets.push({
-                    x: (Math.random() - 0.5) * 120,
-                    y: 2 + Math.random() * 8,
-                    z: (Math.random() - 0.5) * 120,
-                    radius: 3,
+                    x: (Math.random() - 0.5) * 130,
+                    y: 2.5 + Math.random() * 7,
+                    z: (Math.random() - 0.5) * 130,
+                    radius: 3.5,
                     hp: 2,
-                    color: '#ff3333'
+                    angleOffset: Math.random() * Math.PI
                 });
             }
         }
 
         function shoot() {
             if (ammo <= 0) {
-                ammo = 30; // Auto reload for arcade flow
+                ammo = 30;
                 return;
             }
             ammo--;
 
-            // Flash effect
             const flash = document.getElementById('flash');
             flash.style.opacity = '1';
-            setTimeout(() => flash.style.opacity = '0', 50);
+            setTimeout(() => flash.style.opacity = '0', 60);
 
-            // Raycast check for hit targets
             for (let i = targets.length - 1; i >= 0; i--) {
                 let t = targets[i];
                 let dx = t.x - player.x;
@@ -264,15 +261,14 @@
                 let dist = Math.sqrt(dx*dx + dz*dz);
                 let angleToTarget = Math.atan2(dz, dx);
                 let angleDiff = Math.abs(player.angle - angleToTarget);
-                // Handle angle wrap around
                 if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
 
-                if (dist < 50 && angleDiff < 0.2) {
+                if (dist < 55 && angleDiff < 0.22) {
                     t.hp--;
                     createSparks(t.x, t.y, t.z, '#00ffff');
                     if (t.hp <= 0) {
                         targets.splice(i, 1);
-                        score += 300;
+                        score += 350;
                         if (targets.length === 0) {
                             wave++;
                             spawnWave();
@@ -284,13 +280,13 @@
         }
 
         function createSparks(x, y, z, color) {
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 25; i++) {
                 particles.push({
                     x, y, z,
-                    vx: (Math.random() - 0.5) * 0.6,
-                    vy: (Math.random() - 0.5) * 0.6,
-                    vz: (Math.random() - 0.5) * 0.6,
-                    life: 35,
+                    vx: (Math.random() - 0.5) * 0.7,
+                    vy: (Math.random() - 0.5) * 0.7,
+                    vz: (Math.random() - 0.5) * 0.7,
+                    life: 40,
                     color
                 });
             }
@@ -299,7 +295,6 @@
         function update() {
             if (!gameStarted) return;
 
-            // Smooth WASD Movement relative to viewing angle
             let moveX = 0;
             let moveZ = 0;
             if (keys['KeyW'] || keys['ArrowUp']) { moveX += Math.cos(player.angle); moveZ += Math.sin(player.angle); }
@@ -310,7 +305,12 @@
             player.x += moveX * player.speed;
             player.z += moveZ * player.speed;
 
-            // Update Particles
+            // Animate target drones hovering
+            targets.forEach(t => {
+                t.angleOffset += 0.05;
+                t.y += Math.sin(t.angleOffset) * 0.04;
+            });
+
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy; p.z += p.vz;
@@ -318,7 +318,6 @@
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
-            // HUD Updates
             document.getElementById('scoreDisplay').innerText = `SCORE: ${String(score).padStart(6, '0')}`;
             document.getElementById('waveDisplay').innerText = `SECTOR: ${wave}`;
             document.getElementById('healthDisplay').innerText = `SHIELD: ${health}%`;
@@ -326,28 +325,28 @@
         }
 
         function render() {
-            // Deep neon sky gradient
-            let horizonY = canvas.height / 2 + player.pitch * 600;
+            let horizonY = canvas.height / 2 + player.pitch * 550;
             
+            // Sky gradient
             let skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
             skyGrad.addColorStop(0, '#020208');
-            skyGrad.addColorStop(1, '#150528');
+            skyGrad.addColorStop(1, '#180830');
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, horizonY);
 
-            // Ground grid background
-            ctx.fillStyle = '#05020a';
+            // Ground plane
+            ctx.fillStyle = '#06030d';
             ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
 
             const fov = 600;
 
-            // Draw Perspective Grid Floor Lines
+            // Draw glowing ground grid lines
             ctx.strokeStyle = '#ff007f';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.8;
             for (let z = 1; z < 60; z += 2) {
                 let pz = (z - (player.z % 2));
                 if (pz <= 0) continue;
-                let screenY = horizonY + (2.5 / pz) * fov;
+                let screenY = horizonY + (2.2 / pz) * fov;
                 if (screenY > canvas.height) continue;
                 
                 ctx.beginPath();
@@ -356,7 +355,6 @@
                 ctx.stroke();
             }
 
-            // Collect all renderable 3D objects (buildings and targets)
             const renderList = [];
 
             buildings.forEach(b => {
@@ -364,7 +362,7 @@
                 let dz = b.z - player.z;
                 let rx = dx * Math.cos(-player.angle) - dz * Math.sin(-player.angle);
                 let rz = dx * Math.sin(-player.angle) + dz * Math.cos(-player.angle);
-                if (rz > 0.5) renderList.push({ type: 'building', x: rx, z: rz, w: b.width, h: b.height, color: b.color });
+                if (rz > 0.5) renderList.push({ type: 'building', x: rx, z: rz, w: b.width, h: b.height, color: b.color, secColor: b.secondaryColor });
             });
 
             targets.forEach(t => {
@@ -375,7 +373,6 @@
                 if (rz > 0.5) renderList.push({ type: 'target', x: rx, y: t.y, z: rz });
             });
 
-            // Sort back-to-front for proper 3D layering
             renderList.sort((a, b) => b.z - a.z);
 
             renderList.forEach(item => {
@@ -388,26 +385,45 @@
                     let x = screenX - w / 2;
                     let y = horizonY - h;
 
-                    ctx.fillStyle = '#0a0515';
+                    // Solid dark shaded building fill
+                    ctx.fillStyle = '#0a0618';
                     ctx.fillRect(x, y, w, h);
 
+                    // Cyberpunk window strips inside the building
+                    ctx.fillStyle = item.secColor;
+                    let windowCols = Math.floor(w / 10);
+                    let windowRows = Math.floor(h / 15);
+                    for (let r = 1; r < windowRows; r++) {
+                        for (let c = 1; c < windowCols; c++) {
+                            ctx.fillRect(x + c * 8, y + r * 12, 3, 6);
+                        }
+                    }
+
+                    // Neon outline border
                     ctx.strokeStyle = item.color;
                     ctx.shadowColor = item.color;
-                    ctx.shadowBlur = 12;
+                    ctx.shadowBlur = 10;
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x, y, w, h);
                     ctx.shadowBlur = 0;
                 } 
                 else if (item.type === 'target') {
-                    let size = Math.max(5, fov / item.z * 1.5);
-                    ctx.strokeStyle = '#00ffff';
-                    ctx.fillStyle = 'rgba(255, 0, 255, 0.4)';
-                    ctx.shadowColor = '#ff00ff';
-                    ctx.shadowBlur = 18;
+                    // Solid glowing 3D drone rendering
+                    let size = Math.max(8, fov / item.z * 1.8);
+                    
+                    ctx.fillStyle = '#ff1155';
+                    ctx.shadowColor = '#ff0055';
+                    ctx.shadowBlur = 20;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.stroke();
+
+                    // Inner bright core
+                    ctx.fillStyle = '#00ffff';
+                    ctx.shadowColor = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, size * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.shadowBlur = 0;
                 }
             });
