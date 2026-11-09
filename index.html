@@ -174,7 +174,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Audio synthesizer for arcade sounds
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -217,7 +216,6 @@
             } catch(e) {}
         }
 
-        // Map Grid (1 = Wall, 0 = Empty Space)
         const map = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
@@ -247,7 +245,7 @@
             x: 2.5,
             y: 2.5,
             angle: 0,
-            fov: Math.PI / 3, // 60 degrees field of view
+            fov: Math.PI / 3,
             speed: 0.05
         };
 
@@ -263,7 +261,7 @@
 
         window.addEventListener('mousemove', e => {
             if (!gameStarted || gameOver || document.pointerLockElement !== canvas) return;
-            player.angle += e.movementX * 0.003; // Correct mouse look direction
+            player.angle += e.movementX * 0.003;
         });
 
         canvas.addEventListener('click', () => {
@@ -333,7 +331,6 @@
             flash.style.opacity = '1';
             setTimeout(() => flash.style.opacity = '0', 60);
 
-            // Check if looking at any enemy in crosshair center
             enemies.forEach((en, idx) => {
                 let dx = en.x - player.x;
                 let dy = en.y - player.y;
@@ -378,13 +375,11 @@
             if (left) { moveX += sin * player.speed; moveY -= cos * player.speed; }
             if (right) { moveX -= sin * player.speed; moveY += cos * player.speed; }
 
-            // Collision detection against map walls
             let newX = player.x + moveX;
             let newY = player.y + moveY;
             if (map[Math.floor(player.y)][Math.floor(newX)] === 0) player.x = newX;
             if (map[Math.floor(newY)][Math.floor(player.x)] === 0) player.y = newY;
 
-            // Enemy behavior & attacks
             enemies.forEach(en => {
                 let dx = player.x - en.x;
                 let dy = player.y - en.y;
@@ -417,15 +412,15 @@
         }
 
         function render() {
-            ctx.fillStyle = '#05030a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height / 2); // Ceiling
-            ctx.fillStyle = '#100818';
-            ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2); // Floor
+            // Ceiling and Floor gradients
+            ctx.fillStyle = '#030308';
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+            ctx.fillStyle = '#0a0515';
+            ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
             const numRays = canvas.width;
             const halfFov = player.fov / 2;
 
-            // Raycasting Wall Rendering
             for (let i = 0; i < numRays; i++) {
                 let rayAngle = player.angle - halfFov + (i / numRays) * player.fov;
                 let distance = 0;
@@ -447,18 +442,16 @@
                     }
                 }
 
-                // Correct fisheye effect
                 let correctedDist = distance * Math.cos(rayAngle - player.angle);
                 let wallHeight = Math.min(canvas.height, (canvas.height / correctedDist));
                 let ceiling = (canvas.height - wallHeight) / 2;
 
-                // Shaded neon wall colors
-                let shade = Math.max(20, 255 - distance * 15);
-                ctx.fillStyle = `rgb(${shade}, 0, ${shade})`;
+                // FIXED WALL COLOR: Cyan / Electric Blue neon walls instead of purple
+                let shade = Math.max(20, 220 - distance * 12);
+                ctx.fillStyle = `rgb(0, ${shade}, ${shade + 30})`;
                 ctx.fillRect(i, ceiling, 1, wallHeight);
             }
 
-            // Render Enemies (Sprites)
             enemies.forEach(en => {
                 let dx = en.x - player.x;
                 let dy = en.y - player.y;
@@ -484,7 +477,6 @@
                 }
             });
 
-            // Draw On-Screen Sci-Fi Blaster with Recoil
             if (gameStarted && !gameOver) {
                 let wx = canvas.width / 2 + 60;
                 let wy = canvas.height - 110 + weaponRecoil;
