@@ -317,4 +317,234 @@
                 let dz = t.z - player.z;
                 let dist = Math.sqrt(dx*dx + dz*dz);
                 let angleToTarget = Math.atan2(dz, dx);
-                let angle
+                let angleDiff = Math.abs(player.angle - angleToTarget);
+                if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+
+                if (dist < 60 && angleDiff < 0.22) {
+                    t.hp--;
+                    createSparks(t.x, t.y, t.z, '#00ffff');
+                    if (t.hp <= 0) {
+                        targets.splice(i, 1);
+                        score += 350;
+                        if (targets.length === 0) {
+                            wave++;
+                            spawnWave();
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        function createSparks(x, y, z, color) {
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x, y, z,
+                    vx: (Math.random() - 0.5) * 0.7,
+                    vy: (Math.random() - 0.5) * 0.7,
+                    vz: (Math.random() - 0.5) * 0.7,
+                    life: 40,
+                    color
+                });
+            }
+        }
+
+        function update() {
+            if (!gameStarted) return;
+
+            let moveX = 0;
+            let moveZ = 0;
+            const forward = keys['KeyW'] || keys['ArrowUp'] || keys['w'];
+            const backward = keys['KeyS'] || keys['ArrowDown'] || keys['s'];
+            const left = keys['KeyA'] || keys['ArrowLeft'] || keys['a'];
+            const right = keys['KeyD'] || keys['ArrowRight'] || keys['d'];
+
+            if (forward) { moveX += Math.cos(player.angle); moveZ += Math.sin(player.angle); }
+            if (backward) { moveX -= Math.cos(player.angle); moveZ -= Math.sin(player.angle); }
+            if (left) { moveX += Math.sin(player.angle); moveZ -= Math.cos(player.angle); }
+            if (right) { moveX -= Math.sin(player.angle); moveZ += Math.cos(player.angle); }
+
+            let nextX = player.x + moveX * player.speed;
+            let nextZ = player.z + moveZ * player.speed;
+
+            // Apply collision sliding against buildings
+            if (!checkCollision(nextX, player.z)) player.x = nextX;
+            if (!checkCollision(player.x, nextZ)) player.z = nextZ;
+
+            // Animate target drones hovering
+            targets.forEach(t => {
+                t.angleOffset += 0.05;
+                t.y += Math.sin(t.angleOffset) * 0.04;
+            });
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.z += p.vz;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            document.getElementById('scoreDisplay').innerText = `SCORE: ${String(score).padStart(6, '0')}`;
+            document.getElementById('waveDisplay').innerText = `SECTOR: ${wave}`;
+            document.getElementById('healthDisplay').innerText = `SHIELD: ${health}%`;
+            document.getElementById('ammoDisplay').innerText = `AMMO: ${ammo} / 30`;
+
+            renderMinimap();
+        }
+
+        function renderMinimap() {
+            mCtx.fillStyle = '#050510';
+            mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            const scale = 0.9;
+            const centerX = minimapCanvas.width / 2;
+            const centerY = minimapCanvas.height / 2;
+
+            // Draw buildings on minimap
+            mCtx.fillStyle = '#221133';
+            buildings.forEach(b => {
+                let bx = centerX + (b.x - player.x) * scale;
+                let bz = centerY + (b.z - player.z) * scale;
+                if (bx > -20 && bx < minimapCanvas.width + 20 && bz > -20 && bz < minimapCanvas.height + 20) {
+                    let bw = b.width * scale;
+                    let bd = b.depth * scale;
+                    mCtx.fillRect(bx - bw/2, bz - bd/2, bw, bd);
+                }
+            });
+
+            // Draw targets (drones) on minimap
+            mCtx.fillStyle = '#ff0055';
+            targets.forEach(t => {
+                let tx = centerX + (t.x - player.x) * scale;
+                let tz = centerY + (t.z - player.z) * scale;
+                mCtx.beginPath();
+                mCtx.arc(tx, tz, 3, 0, Math.PI * 2);
+                mCtx.fill();
+            });
+
+            // Draw player indicator on minimap
+            mCtx.fillStyle = '#00ffff';
+            mCtx.beginPath();
+            mCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+            mCtx.fill();
+
+            // Draw player view direction line
+            mCtx.strokeStyle = '#00ffff';
+            mCtx.lineWidth = 2;
+            mCtx.beginPath();
+            mCtx.moveTo(centerX, centerY);
+            mCtx.lineTo(centerX + Math.cos(player.angle) * 12, centerY + Math.sin(player.angle) * 12);
+            mCtx.stroke();
+        }
+
+        function render() {
+            let horizonY = canvas.height / 2 + player.pitch * 550;
+            
+            // Sky gradient
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#020208');
+            skyGrad.addColorStop(1, '#180830');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, horizonY);
+
+            // Ground plane
+            ctx.fillStyle = '#06030d';
+            ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+
+            const fov = 600;
+
+            // Draw glowing ground grid lines
+            ctx.strokeStyle = '#ff007f';
+            ctx.lineWidth = 1.8;
+            for (let z = 1; z < 60; z += 2) {
+                let pz = (z - (player.z % 2));
+                if (pz <= 0) continue;
+                let screenY = horizonY + (2.2 / pz) * fov;
+                if (screenY > canvas.height) continue;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, screenY);
+                ctx.lineTo(canvas.width, screenY);
+                ctx.stroke();
+            }
+
+            const renderList = [];
+
+            buildings.forEach(b => {
+                let dx = b.x - player.x;
+                let dz = b.z - player.z;
+                let rx = dx * Math.cos(player.angle) + dz * Math.sin(player.angle);
+                let rz = -dx * Math.sin(player.angle) + dz * Math.cos(player.angle);
+                if (rz > 0.5) renderList.push({ type: 'building', x: rx, z: rz, w: b.width, h: b.height, color: b.color, secColor: b.secondaryColor });
+            });
+
+            targets.forEach(t => {
+                let dx = t.x - player.x;
+                let dz = t.z - player.z;
+                let rx = dx * Math.cos(player.angle) + dz * Math.sin(player.angle);
+                let rz = -dx * Math.sin(player.angle) + dz * Math.cos(player.angle);
+                if (rz > 0.5) renderList.push({ type: 'target', x: rx, y: t.y, z: rz });
+            });
+
+            renderList.sort((a, b) => b.z - a.z);
+
+            renderList.forEach(item => {
+                let screenX = canvas.width / 2 + (item.x / item.z) * fov;
+                let screenY = horizonY + ( (item.type === 'target' ? item.y : 0) / item.z) * fov;
+
+                if (item.type === 'building') {
+                    let w = (item.w / item.z) * fov;
+                    let h = (item.h / item.z) * fov;
+                    let x = screenX - w / 2;
+                    let y = horizonY - h;
+
+                    ctx.fillStyle = '#0a0618';
+                    ctx.fillRect(x, y, w, h);
+
+                    ctx.fillStyle = item.secColor;
+                    let windowCols = Math.floor(w / 10);
+                    let windowRows = Math.floor(h / 15);
+                    for (let r = 1; r < windowRows; r++) {
+                        for (let c = 1; c < windowCols; c++) {
+                            ctx.fillRect(x + c * 8, y + r * 12, 3, 6);
+                        }
+                    }
+
+                    ctx.strokeStyle = item.color;
+                    ctx.shadowColor = item.color;
+                    ctx.shadowBlur = 10;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, w, h);
+                    ctx.shadowBlur = 0;
+                } 
+                else if (item.type === 'target') {
+                    let size = Math.max(8, fov / item.z * 1.8);
+                    
+                    ctx.fillStyle = '#ff1155';
+                    ctx.shadowColor = '#ff0055';
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#00ffff';
+                    ctx.shadowColor = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, size * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        initWorld();
+        loop();
+    </script>
+</body>
+</html>
