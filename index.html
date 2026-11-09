@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Cyber City - 3D FPS Simulator</title>
+    <title>Retro Arcade FPS - Cyber City 2099</title>
     <style>
         * {
             box-sizing: border-box;
@@ -15,7 +15,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #020205;
+            background: #000;
             font-family: 'Courier New', Courier, monospace;
         }
         #canvas-container {
@@ -41,12 +41,11 @@
             justify-content: space-between;
             padding: 25px;
             color: #00ffff;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
         }
         .hud-top {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
             font-size: 20px;
             font-weight: bold;
             letter-spacing: 2px;
@@ -57,39 +56,25 @@
             align-items: flex-end;
             font-size: 16px;
         }
-        #minimap-container {
-            background: rgba(5, 5, 20, 0.85);
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
-            border-radius: 6px;
-            padding: 4px;
-            width: 150px;
-            height: 150px;
-        }
-        #minimap {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             pointer-events: none;
         }
         #crosshair::before, #crosshair::after {
             content: '';
             position: absolute;
             background: #00ffff;
-            box-shadow: 0 0 8px #00ffff;
+            box-shadow: 0 0 6px #00ffff;
         }
-        #crosshair::before { top: 10px; left: 0; width: 24px; height: 4px; }
-        #crosshair::after { top: 0; left: 10px; width: 4px; height: 24px; }
+        #crosshair::before { top: 8px; left: 0; width: 20px; height: 4px; }
+        #crosshair::after { top: 0; left: 8px; width: 4px; height: 20px; }
         
-        #instructions {
+        #instructions, #gameover {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -101,24 +86,25 @@
             text-align: center;
             color: #fff;
             pointer-events: auto;
-            cursor: pointer;
             border-radius: 10px;
             max-width: 500px;
         }
-        #instructions h1 {
+        #gameover { display: none; border-color: #ff0055; box-shadow: 0 0 30px rgba(255, 0, 85, 0.5); }
+        #instructions h1, #gameover h1 {
             color: #ff00ff;
             text-shadow: 0 0 15px #ff00ff;
             margin-bottom: 15px;
-            font-size: 30px;
+            font-size: 28px;
             letter-spacing: 2px;
         }
-        #instructions p {
+        #gameover h1 { color: #ff0055; text-shadow: 0 0 15px #ff0055; }
+        #instructions p, #gameover p {
             margin-bottom: 12px;
             color: #00ffff;
             font-size: 15px;
             line-height: 1.4;
         }
-        #instructions button {
+        #instructions button, #gameover button {
             background: linear-gradient(45deg, #ff00ff, #00ffff);
             color: #000;
             border: none;
@@ -133,7 +119,7 @@
             letter-spacing: 1px;
             transition: 0.2s;
         }
-        #instructions button:hover {
+        #instructions button:hover, #gameover button:hover {
             transform: scale(1.05);
             box-shadow: 0 0 25px #00ffff;
         }
@@ -155,34 +141,31 @@
         <div id="flash"></div>
         <div id="ui">
             <div class="hud-top">
-                <div>
-                    <div id="scoreDisplay">SCORE: 000000</div>
-                    <div id="waveDisplay">SECTOR: 1</div>
-                    <div id="healthDisplay">SHIELD: 100%</div>
-                </div>
-                <div id="minimap-container">
-                    <canvas id="minimap" width="140" height="140"></canvas>
-                </div>
+                <div id="scoreDisplay">SCORE: 000000</div>
+                <div id="waveDisplay">SECTOR: 1</div>
+                <div id="healthDisplay">SHIELD: 100%</div>
             </div>
             <div class="hud-bottom">
                 <div id="ammoDisplay">AMMO: 30 / 30</div>
-                <div id="controlsHint">WASD to Move | Mouse to Look | Left Click to Fire</div>
+                <div id="controlsHint">WASD to Move | Mouse to Turn | Left Click to Fire</div>
             </div>
         </div>
         <div id="instructions">
-            <h1>NEON DISTRICT 2099</h1>
-            <p>Navigate the structured cybernetic street grid, use your tactical minimap, and eliminate rogue combat drones.</p>
-            <p><b>WASD</b> to move through streets.</p>
-            <p><b>Mouse</b> to look around & <b>Left Click</b> to shoot.</p>
-            <button id="startBtn">INITIALIZE SIMULATION</button>
+            <h1>CYBER ARCADE FPS</h1>
+            <p>Explore the neon corridors, hunt down rogue security droids, and survive each sector.</p>
+            <p><b>WASD</b> to move | <b>Mouse</b> to look around | <b>Left Click</b> to shoot.</p>
+            <button id="startBtn">START MISSION</button>
+        </div>
+        <div id="gameover">
+            <h1>MISSION FAILED</h1>
+            <p id="finalScore">FINAL SCORE: 0</p>
+            <button id="restartBtn">RETRY MISSION</button>
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const minimapCanvas = document.getElementById('minimap');
-        const mCtx = minimapCanvas.getContext('2d');
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -191,20 +174,81 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // Audio synthesizer for arcade sounds
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                let now = audioCtx.currentTime;
+
+                if (type === 'shoot') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'hit') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.18);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'hurt') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            } catch(e) {}
+        }
+
+        // Map Grid (1 = Wall, 0 = Empty Space)
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,0,1,1,1,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,1,0,0,1,0,1],
+            [1,0,1,0,1,1,1,1,0,0,1,1,0,1,0,1],
+            [1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1],
+            [1,1,1,0,1,0,0,1,1,1,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,0,1,1,1,0,1],
+            [1,0,0,0,0,1,0,1,0,0,0,1,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        const mapWidth = map[0].length;
+        const mapHeight = map.length;
+
         let gameStarted = false;
+        let gameOver = false;
         let score = 0;
         let health = 100;
         let wave = 1;
         let ammo = 30;
-        
+        let weaponRecoil = 0;
+
         const player = {
-            x: 0,
-            y: 2.2,
-            z: 0,
+            x: 2.5,
+            y: 2.5,
             angle: 0,
-            pitch: 0,
-            speed: 0.16,
-            radius: 1.2
+            fov: Math.PI / 3, // 60 degrees field of view
+            speed: 0.05
         };
 
         const keys = {};
@@ -217,87 +261,63 @@
             if (e.key) keys[e.key.toLowerCase()] = false;
         });
 
-        // Fixed mouse look (Corrected horizontal left/right flip & vertical look)
         window.addEventListener('mousemove', e => {
-            if (!gameStarted || document.pointerLockElement !== canvas) return;
-            player.angle -= e.movementX * 0.0022; // Fixed left/right direction
-            player.pitch -= e.movementY * 0.0022; // Un-inverted vertical look
-            player.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, player.pitch));
+            if (!gameStarted || gameOver || document.pointerLockElement !== canvas) return;
+            player.angle += e.movementX * 0.003; // Correct mouse look direction
         });
 
         canvas.addEventListener('click', () => {
-            if (gameStarted) {
+            if (gameStarted && !gameOver) {
                 canvas.requestPointerLock();
                 shoot();
             }
         });
 
         document.getElementById('startBtn').addEventListener('click', () => {
+            initAudio();
             document.getElementById('instructions').style.display = 'none';
             canvas.requestPointerLock();
             gameStarted = true;
         });
 
-        const buildings = [];
-        const targets = [];
-        const particles = [];
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            initAudio();
+            document.getElementById('gameover').style.display = 'none';
+            resetGame();
+            canvas.requestPointerLock();
+        });
 
-        function initWorld() {
-            // Build an actual organized grid map with streets
-            const blockSize = 24;
-            const streetWidth = 14;
-            const gridRange = 3; // -3 to 3 blocks
-
-            for (let gx = -gridRange; gx <= gridRange; gx++) {
-                for (let gz = -gridRange; gz <= gridRange; gz++) {
-                    // Leave center clear for spawn
-                    if (gx === 0 && gz === 0) continue;
-
-                    let bx = gx * (blockSize + streetWidth);
-                    let bz = gz * (blockSize + streetWidth);
-
-                    buildings.push({
-                        x: bx,
-                        z: bz,
-                        width: blockSize,
-                        depth: blockSize,
-                        height: 40 + Math.random() * 50,
-                        color: (gx + gz) % 2 === 0 ? '#ff00ff' : '#00ffff',
-                        secondaryColor: '#00ffff'
-                    });
-                }
-            }
-            spawnWave();
-        }
+        const enemies = [];
 
         function spawnWave() {
-            targets.length = 0;
-            const count = 5 + wave * 3;
+            enemies.length = 0;
+            const count = 4 + wave * 2;
             for (let i = 0; i < count; i++) {
-                // Spawn targets within streets/alleys
-                targets.push({
-                    x: (Math.random() - 0.5) * 160,
-                    y: 2.5 + Math.random() * 6,
-                    z: (Math.random() - 0.5) * 160,
-                    radius: 3.5,
+                let ex, ey;
+                do {
+                    ex = 2 + Math.random() * (mapWidth - 4);
+                    ey = 2 + Math.random() * (mapHeight - 4);
+                } while (map[Math.floor(ey)][Math.floor(ex)] === 1);
+
+                enemies.push({
+                    x: ex,
+                    y: ey,
                     hp: 2,
-                    angleOffset: Math.random() * Math.PI
+                    shootTimer: Math.random() * 100
                 });
             }
         }
 
-        function checkCollision(nx, nz) {
-            for (let b of buildings) {
-                let minX = b.x - b.width / 2 - player.radius;
-                let maxX = b.x + b.width / 2 + player.radius;
-                let minZ = b.z - b.depth / 2 - player.radius;
-                let maxZ = b.z + b.depth / 2 + player.radius;
-
-                if (nx > minX && nx < maxX && nz > minZ && nz < maxZ) {
-                    return true;
-                }
-            }
-            return false;
+        function resetGame() {
+            score = 0;
+            health = 100;
+            wave = 1;
+            ammo = 30;
+            player.x = 2.5;
+            player.y = 2.5;
+            player.angle = 0;
+            gameOver = false;
+            spawnWave();
         }
 
         function shoot() {
@@ -306,235 +326,189 @@
                 return;
             }
             ammo--;
+            weaponRecoil = 15;
+            playSound('shoot');
 
             const flash = document.getElementById('flash');
             flash.style.opacity = '1';
             setTimeout(() => flash.style.opacity = '0', 60);
 
-            for (let i = targets.length - 1; i >= 0; i--) {
-                let t = targets[i];
-                let dx = t.x - player.x;
-                let dz = t.z - player.z;
-                let dist = Math.sqrt(dx*dx + dz*dz);
-                let angleToTarget = Math.atan2(dz, dx);
-                let angleDiff = Math.abs(player.angle - angleToTarget);
-                if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+            // Check if looking at any enemy in crosshair center
+            enemies.forEach((en, idx) => {
+                let dx = en.x - player.x;
+                let dy = en.y - player.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let angleToEnemy = Math.atan2(dy, dx);
+                let angleDiff = Math.abs(player.angle - angleToEnemy);
+                while (angleDiff > Math.PI * 2) angleDiff -= Math.PI * 2;
+                angleDiff = Math.abs(angleDiff);
 
-                if (dist < 60 && angleDiff < 0.22) {
-                    t.hp--;
-                    createSparks(t.x, t.y, t.z, '#00ffff');
-                    if (t.hp <= 0) {
-                        targets.splice(i, 1);
-                        score += 350;
-                        if (targets.length === 0) {
+                if (dist < 8 && angleDiff < 0.25) {
+                    en.hp--;
+                    playSound('hit');
+                    if (en.hp <= 0) {
+                        enemies.splice(idx, 1);
+                        score += 300;
+                        if (enemies.length === 0) {
                             wave++;
                             spawnWave();
                         }
                     }
-                    break;
                 }
-            }
-        }
-
-        function createSparks(x, y, z, color) {
-            for (let i = 0; i < 25; i++) {
-                particles.push({
-                    x, y, z,
-                    vx: (Math.random() - 0.5) * 0.7,
-                    vy: (Math.random() - 0.5) * 0.7,
-                    vz: (Math.random() - 0.5) * 0.7,
-                    life: 40,
-                    color
-                });
-            }
+            });
         }
 
         function update() {
-            if (!gameStarted) return;
+            if (!gameStarted || gameOver) return;
+
+            if (weaponRecoil > 0) weaponRecoil *= 0.75;
 
             let moveX = 0;
-            let moveZ = 0;
+            let moveY = 0;
             const forward = keys['KeyW'] || keys['ArrowUp'] || keys['w'];
             const backward = keys['KeyS'] || keys['ArrowDown'] || keys['s'];
-            const left = keys['KeyA'] || keys['ArrowLeft'] || keys['a'];
-            const right = keys['KeyD'] || keys['ArrowRight'] || keys['d'];
+            const left = keys['KeyA'] || keys['a'];
+            const right = keys['KeyD'] || keys['d'];
 
-            if (forward) { moveX += Math.cos(player.angle); moveZ += Math.sin(player.angle); }
-            if (backward) { moveX -= Math.cos(player.angle); moveZ -= Math.sin(player.angle); }
-            if (left) { moveX += Math.sin(player.angle); moveZ -= Math.cos(player.angle); }
-            if (right) { moveX -= Math.sin(player.angle); moveZ += Math.cos(player.angle); }
+            let cos = Math.cos(player.angle);
+            let sin = Math.sin(player.angle);
 
-            let nextX = player.x + moveX * player.speed;
-            let nextZ = player.z + moveZ * player.speed;
+            if (forward) { moveX += cos * player.speed; moveY += sin * player.speed; }
+            if (backward) { moveX -= cos * player.speed; moveY -= sin * player.speed; }
+            if (left) { moveX += sin * player.speed; moveY -= cos * player.speed; }
+            if (right) { moveX -= sin * player.speed; moveY += cos * player.speed; }
 
-            // Apply collision sliding against buildings
-            if (!checkCollision(nextX, player.z)) player.x = nextX;
-            if (!checkCollision(player.x, nextZ)) player.z = nextZ;
+            // Collision detection against map walls
+            let newX = player.x + moveX;
+            let newY = player.y + moveY;
+            if (map[Math.floor(player.y)][Math.floor(newX)] === 0) player.x = newX;
+            if (map[Math.floor(newY)][Math.floor(player.x)] === 0) player.y = newY;
 
-            // Animate target drones hovering
-            targets.forEach(t => {
-                t.angleOffset += 0.05;
-                t.y += Math.sin(t.angleOffset) * 0.04;
+            // Enemy behavior & attacks
+            enemies.forEach(en => {
+                let dx = player.x - en.x;
+                let dy = player.y - en.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist > 1.2) {
+                    en.x += (dx / dist) * 0.015;
+                    en.y += (dy / dist) * 0.015;
+                } else {
+                    en.shootTimer++;
+                    if (en.shootTimer > 90) {
+                        en.shootTimer = 0;
+                        health -= 15;
+                        playSound('hurt');
+                        if (health <= 0) {
+                            health = 0;
+                            gameOver = true;
+                            document.exitPointerLock();
+                            document.getElementById('finalScore').innerText = `FINAL SCORE: ${score}`;
+                            document.getElementById('gameover').style.display = 'block';
+                        }
+                    }
+                }
             });
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.x += p.vx; p.y += p.vy; p.z += p.vz;
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
 
             document.getElementById('scoreDisplay').innerText = `SCORE: ${String(score).padStart(6, '0')}`;
             document.getElementById('waveDisplay').innerText = `SECTOR: ${wave}`;
             document.getElementById('healthDisplay').innerText = `SHIELD: ${health}%`;
             document.getElementById('ammoDisplay').innerText = `AMMO: ${ammo} / 30`;
-
-            renderMinimap();
-        }
-
-        function renderMinimap() {
-            mCtx.fillStyle = '#050510';
-            mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-
-            const scale = 0.9;
-            const centerX = minimapCanvas.width / 2;
-            const centerY = minimapCanvas.height / 2;
-
-            // Draw buildings on minimap
-            mCtx.fillStyle = '#221133';
-            buildings.forEach(b => {
-                let bx = centerX + (b.x - player.x) * scale;
-                let bz = centerY + (b.z - player.z) * scale;
-                if (bx > -20 && bx < minimapCanvas.width + 20 && bz > -20 && bz < minimapCanvas.height + 20) {
-                    let bw = b.width * scale;
-                    let bd = b.depth * scale;
-                    mCtx.fillRect(bx - bw/2, bz - bd/2, bw, bd);
-                }
-            });
-
-            // Draw targets (drones) on minimap
-            mCtx.fillStyle = '#ff0055';
-            targets.forEach(t => {
-                let tx = centerX + (t.x - player.x) * scale;
-                let tz = centerY + (t.z - player.z) * scale;
-                mCtx.beginPath();
-                mCtx.arc(tx, tz, 3, 0, Math.PI * 2);
-                mCtx.fill();
-            });
-
-            // Draw player indicator on minimap
-            mCtx.fillStyle = '#00ffff';
-            mCtx.beginPath();
-            mCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
-            mCtx.fill();
-
-            // Draw player view direction line
-            mCtx.strokeStyle = '#00ffff';
-            mCtx.lineWidth = 2;
-            mCtx.beginPath();
-            mCtx.moveTo(centerX, centerY);
-            mCtx.lineTo(centerX + Math.cos(player.angle) * 12, centerY + Math.sin(player.angle) * 12);
-            mCtx.stroke();
         }
 
         function render() {
-            let horizonY = canvas.height / 2 + player.pitch * 550;
-            
-            // Sky gradient
-            let skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
-            skyGrad.addColorStop(0, '#020208');
-            skyGrad.addColorStop(1, '#180830');
-            ctx.fillStyle = skyGrad;
-            ctx.fillRect(0, 0, canvas.width, horizonY);
+            ctx.fillStyle = '#05030a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2); // Ceiling
+            ctx.fillStyle = '#100818';
+            ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2); // Floor
 
-            // Ground plane
-            ctx.fillStyle = '#06030d';
-            ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+            const numRays = canvas.width;
+            const halfFov = player.fov / 2;
 
-            const fov = 600;
+            // Raycasting Wall Rendering
+            for (let i = 0; i < numRays; i++) {
+                let rayAngle = player.angle - halfFov + (i / numRays) * player.fov;
+                let distance = 0;
+                let hitWall = false;
 
-            // Draw glowing ground grid lines
-            ctx.strokeStyle = '#ff007f';
-            ctx.lineWidth = 1.8;
-            for (let z = 1; z < 60; z += 2) {
-                let pz = (z - (player.z % 2));
-                if (pz <= 0) continue;
-                let screenY = horizonY + (2.2 / pz) * fov;
-                if (screenY > canvas.height) continue;
-                
-                ctx.beginPath();
-                ctx.moveTo(0, screenY);
-                ctx.lineTo(canvas.width, screenY);
-                ctx.stroke();
+                let eyeX = Math.cos(rayAngle);
+                let eyeY = Math.sin(rayAngle);
+
+                while (!hitWall && distance < 16) {
+                    distance += 0.05;
+                    let testX = Math.floor(player.x + eyeX * distance);
+                    let testY = Math.floor(player.y + eyeY * distance);
+
+                    if (testX < 0 || testX >= mapWidth || testY < 0 || testY >= mapHeight) {
+                        hitWall = true;
+                        distance = 16;
+                    } else if (map[testY][testX] === 1) {
+                        hitWall = true;
+                    }
+                }
+
+                // Correct fisheye effect
+                let correctedDist = distance * Math.cos(rayAngle - player.angle);
+                let wallHeight = Math.min(canvas.height, (canvas.height / correctedDist));
+                let ceiling = (canvas.height - wallHeight) / 2;
+
+                // Shaded neon wall colors
+                let shade = Math.max(20, 255 - distance * 15);
+                ctx.fillStyle = `rgb(${shade}, 0, ${shade})`;
+                ctx.fillRect(i, ceiling, 1, wallHeight);
             }
 
-            const renderList = [];
+            // Render Enemies (Sprites)
+            enemies.forEach(en => {
+                let dx = en.x - player.x;
+                let dy = en.y - player.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
 
-            buildings.forEach(b => {
-                let dx = b.x - player.x;
-                let dz = b.z - player.z;
-                let rx = dx * Math.cos(player.angle) + dz * Math.sin(player.angle);
-                let rz = -dx * Math.sin(player.angle) + dz * Math.cos(player.angle);
-                if (rz > 0.5) renderList.push({ type: 'building', x: rx, z: rz, w: b.width, h: b.height, color: b.color, secColor: b.secondaryColor });
-            });
+                let angleToEnemy = Math.atan2(dy, dx);
+                let angleDiff = angleToEnemy - player.angle;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-            targets.forEach(t => {
-                let dx = t.x - player.x;
-                let dz = t.z - player.z;
-                let rx = dx * Math.cos(player.angle) + dz * Math.sin(player.angle);
-                let rz = -dx * Math.sin(player.angle) + dz * Math.cos(player.angle);
-                if (rz > 0.5) renderList.push({ type: 'target', x: rx, y: t.y, z: rz });
-            });
+                if (angleDiff > -player.fov && angleDiff < player.fov && dist > 0.3) {
+                    let screenX = (canvas.width / 2) + (angleDiff / halfFov) * (canvas.width / 2);
+                    let size = Math.min(canvas.height, canvas.height / dist);
+                    let screenY = (canvas.height - size) / 2;
 
-            renderList.sort((a, b) => b.z - a.z);
-
-            renderList.forEach(item => {
-                let screenX = canvas.width / 2 + (item.x / item.z) * fov;
-                let screenY = horizonY + ( (item.type === 'target' ? item.y : 0) / item.z) * fov;
-
-                if (item.type === 'building') {
-                    let w = (item.w / item.z) * fov;
-                    let h = (item.h / item.z) * fov;
-                    let x = screenX - w / 2;
-                    let y = horizonY - h;
-
-                    ctx.fillStyle = '#0a0618';
-                    ctx.fillRect(x, y, w, h);
-
-                    ctx.fillStyle = item.secColor;
-                    let windowCols = Math.floor(w / 10);
-                    let windowRows = Math.floor(h / 15);
-                    for (let r = 1; r < windowRows; r++) {
-                        for (let c = 1; c < windowCols; c++) {
-                            ctx.fillRect(x + c * 8, y + r * 12, 3, 6);
-                        }
-                    }
-
-                    ctx.strokeStyle = item.color;
-                    ctx.shadowColor = item.color;
-                    ctx.shadowBlur = 10;
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x, y, w, h);
-                    ctx.shadowBlur = 0;
-                } 
-                else if (item.type === 'target') {
-                    let size = Math.max(8, fov / item.z * 1.8);
-                    
-                    ctx.fillStyle = '#ff1155';
+                    ctx.fillStyle = '#ff0055';
                     ctx.shadowColor = '#ff0055';
-                    ctx.shadowBlur = 20;
+                    ctx.shadowBlur = 15;
                     ctx.beginPath();
-                    ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#00ffff';
-                    ctx.shadowColor = '#00ffff';
-                    ctx.beginPath();
-                    ctx.arc(screenX, screenY, size * 0.4, 0, Math.PI * 2);
+                    ctx.arc(screenX, screenY + size / 2, size / 4, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }
             });
+
+            // Draw On-Screen Sci-Fi Blaster with Recoil
+            if (gameStarted && !gameOver) {
+                let wx = canvas.width / 2 + 60;
+                let wy = canvas.height - 110 + weaponRecoil;
+                ctx.fillStyle = '#111827';
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 15;
+
+                ctx.beginPath();
+                ctx.moveTo(wx, wy + 40);
+                ctx.lineTo(wx + 50, wy - 40);
+                ctx.lineTo(wx + 130, wy - 30);
+                ctx.lineTo(wx + 160, wy + 80);
+                ctx.lineTo(wx - 20, wy + 90);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff00ff';
+                ctx.shadowColor = '#ff00ff';
+                ctx.fillRect(wx + 30, wy, 50, 20);
+                ctx.shadowBlur = 0;
+            }
         }
 
         function loop() {
@@ -543,7 +517,7 @@
             requestAnimationFrame(loop);
         }
 
-        initWorld();
+        spawnWave();
         loop();
     </script>
 </body>
